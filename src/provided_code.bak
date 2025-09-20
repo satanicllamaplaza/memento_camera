@@ -6,23 +6,19 @@
 #include <Arduino.h>
 
 Adafruit_PyCamera pycamera;
-framesize_t validSizes[] = {FRAMESIZE_QQVGA,
-                            FRAMESIZE_VGA,
-                            FRAMESIZE_HD,
-                            FRAMESIZE_QSXGA};
+framesize_t validSizes[] = {FRAMESIZE_QQVGA, FRAMESIZE_QVGA, FRAMESIZE_HVGA,
+                            FRAMESIZE_VGA,   FRAMESIZE_SVGA, FRAMESIZE_XGA,
+                            FRAMESIZE_HD,    FRAMESIZE_SXGA, FRAMESIZE_UXGA,
+                            FRAMESIZE_QXGA,  FRAMESIZE_QSXGA};
 
 // A colection of possible ring light colors
-//uint32_t ringlightcolors_RGBW[] = {0x00000000, 0x00FF0000, 0x00FFFF00,
-//                                   0x0000FF00, 0x0000FFFF, 0x000000FF,
-//                                   0x00FF00FF, 0xFF000000};
-// A colection of groovy ring light colors
-uint32_t ringlightcolors_RGBW[] = {0x00000000, 0x00ff1700, 0x00ffab00,
-                                   0x00fff800, 0x00ff6d00, 0x000083ff,
-                                   0x00ff0072, 0x00ffbc65};
+uint32_t ringlightcolors_RGBW[] = {0x00000000, 0x00FF0000, 0x00FFFF00,
+                                   0x0000FF00, 0x0000FFFF, 0x000000FF,
+                                   0x00FF00FF, 0xFF000000};
 uint8_t ringlight_i = 0;
 uint8_t ringlightBrightness = 100;
 
-#define IRQ 3 // probably drop maybe keep the measure for level tbd
+#define IRQ 3
 
 void setup() {
   Serial.begin(115200);
@@ -37,7 +33,7 @@ void setup() {
   Serial.println("pyCamera hardware initialized!");
 
   pinMode(IRQ, INPUT_PULLUP);
-  attachInterrupt(  // probably drop maybe keep the measure for level tbd
+  attachInterrupt(
       IRQ, [] { Serial.println("IRQ!"); }, FALLING);
 }
 
@@ -73,8 +69,6 @@ void loop() {
     delay(200);
   }
 
-  // probably remove this battery information.
-
   float A0_voltage = analogRead(A0) / 4096.0 * 3.3;
   if (loopn == 0) {
     Serial.printf("A0 = %0.1f V, Battery = %0.1f V\n\r", A0_voltage,
@@ -98,11 +92,32 @@ void loop() {
   case FRAMESIZE_QQVGA:
     pycamera.fb->print("160x120");
     break;
+  case FRAMESIZE_QVGA:
+    pycamera.fb->print("320x240");
+    break;
+  case FRAMESIZE_HVGA:
+    pycamera.fb->print("480x320");
+    break;
   case FRAMESIZE_VGA:
     pycamera.fb->print("640x480");
     break;
+  case FRAMESIZE_SVGA:
+    pycamera.fb->print("800x600");
+    break;
+  case FRAMESIZE_XGA:
+    pycamera.fb->print("1024x768");
+    break;
   case FRAMESIZE_HD:
     pycamera.fb->print("1280x720");
+    break;
+  case FRAMESIZE_SXGA:
+    pycamera.fb->print("1280x1024");
+    break;
+  case FRAMESIZE_UXGA:
+    pycamera.fb->print("1600x1200");
+    break;
+  case FRAMESIZE_QXGA:
+    pycamera.fb->print("2048x1536");
     break;
   case FRAMESIZE_QSXGA:
     pycamera.fb->print("2560x1920");
