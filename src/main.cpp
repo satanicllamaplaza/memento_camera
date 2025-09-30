@@ -4,26 +4,85 @@
 
 #include "Adafruit_PyCamera.h"
 #include <Arduino.h>
+#include <iostream>
+#include <string>
+#include <vector>
 
 
 Adafruit_PyCamera pycamera;
-framesize_t validSizes[] = {FRAMESIZE_QQVGA,
-                            FRAMESIZE_VGA,
-                            FRAMESIZE_HD,
-                            FRAMESIZE_QSXGA};
-
-// A colection of possible ring light colors
-//uint32_t ringlightcolors_RGBW[] = {0x00000000, 0x00FF0000, 0x00FFFF00,
-//                                   0x0000FF00, 0x0000FFFF, 0x000000FF,
-//                                   0x00FF00FF, 0xFF000000};
-// A colection of groovy ring light colors
-uint32_t ringlightcolors_RGBW[] = {0x00000000, 0x00ff1700, 0x00ffab00,
-                                   0x00fff800, 0x00ff6d00, 0x000083ff,
-                                   0x00ff0072, 0x00ffbc65};
-uint8_t ringlight_i = 0;
-uint8_t ringlightBrightness = 100;
 
 
+struct MenuItem {
+  std::string name;               // label
+  int currentIndex;               // which option is selected
+  std::vector<uint32_t> options;  // hardware-compatible values
+  std::vector<String> displayData;
+};
+
+std::vector<MenuItem> menu = {
+  {
+    "LED Brightness",
+    0,
+    {
+      0,
+      20,
+      40,
+      60,
+      80,
+      100
+    },
+    {
+      "OFF",
+      "20",
+      "40",
+      "60",
+      "80",
+      "100"
+    }
+  }, // maybe later add more like 50, 75, 100
+  {
+    "ringlightcolors_RGBW",
+    0,
+    {
+      0x00000000,
+      0x00ff1700,
+      0x00ffab00,
+      0x00fff800,
+      0x00ff6d00,
+      0x000083ff,
+      0x00ff0072,
+      0x00ffbc65
+    },
+    {
+      "Off",
+      "Orange",
+      "Amber",
+      "Yellow",
+      "Red-Orange",
+      "Blue",
+      "Pink",
+      "Peach"
+    }
+  },
+  {
+    "Resolution",
+    4,
+    {
+      FRAMESIZE_QQVGA,
+      FRAMESIZE_VGA,
+      FRAMESIZE_HD,
+      FRAMESIZE_QSXGA
+    },
+    {
+      "160x120",
+      "640x480",
+      "1280x720",
+      "2560x1920"
+    }
+  },
+};
+
+int selectedMenu = 0; // which menu item is active
 
 #define IRQ 3 // probably drop maybe keep the measure for level tbd
 
@@ -91,49 +150,24 @@ void loop() {
 
   // probably remove this battery information.
 
-  float A0_voltage = analogRead(A0) / 4096.0 * 3.3;
-  if (loopn == 0) {
-    Serial.printf("A0 = %0.1f V, Battery = %0.1f V\n\r", A0_voltage,
-                  pycamera.readBatteryVoltage());
-  }
-  pycamera.fb->setCursor(0, 0);
-  pycamera.fb->setTextSize(2);
-  pycamera.fb->setTextColor(pycamera.color565(255, 255, 255));
-  pycamera.fb->print("A0 = ");
-  pycamera.fb->print(A0_voltage, 1);
-  pycamera.fb->print("V\nBattery = ");
-  pycamera.fb->print(pycamera.readBatteryVoltage(), 1);
-  pycamera.fb->print(" V");
-
-  // print the camera frame size
-  pycamera.fb->setCursor(0, 200);
-  pycamera.fb->setTextSize(2);
-  pycamera.fb->setTextColor(pycamera.color565(255, 255, 255));
-  pycamera.fb->print("Size:");
-  switch (pycamera.photoSize) {
-  case FRAMESIZE_QQVGA:
-    pycamera.fb->print("160x120");
-    break;
-  case FRAMESIZE_VGA:
-    pycamera.fb->print("640x480");
-    break;
-  case FRAMESIZE_HD:
-    pycamera.fb->print("1280x720");
-    break;
-    pycamera.fb->print("2048x1536");
-    break;
-  case FRAMESIZE_QSXGA:
-    pycamera.fb->print("2560x1920");
-    break;
-  default:
-    pycamera.fb->print("Unknown");
-    break;
-  }
+  // float A0_voltage = analogRead(A0) / 4096.0 * 3.3;
+  // if (loopn == 0) {
+  //   Serial.printf("A0 = %0.1f V, Battery = %0.1f V\n\r", A0_voltage,
+  //                 pycamera.readBatteryVoltage());
+  // }
+  // pycamera.fb->setCursor(0, 0);
+  // pycamera.fb->setTextSize(2);
+  // pycamera.fb->setTextColor(pycamera.color565(255, 255, 255));
+  // pycamera.fb->print("A0 = ");
+  // pycamera.fb->print(A0_voltage, 1);
+  // pycamera.fb->print("V\nBattery = ");
+  // pycamera.fb->print(pycamera.readBatteryVoltage(), 1);
+  // pycamera.fb->print(" V");
 
   float x_ms2, y_ms2, z_ms2;
   if (pycamera.readAccelData(&x_ms2, &y_ms2, &z_ms2)) {
     // Serial.printf("X=%0.2f, Y=%0.2f, Z=%0.2f\n\r", x_ms2, y_ms2, z_ms2);
-    pycamera.fb->setCursor(0, 220);
+    pycamera.fb->setCursor(0, 100);
     pycamera.fb->setTextSize(2);
     pycamera.fb->setTextColor(pycamera.color565(206, 192, 144));
     pycamera.fb->print("3D: ");
@@ -145,55 +179,61 @@ void loop() {
   }
 
   pycamera.blitFrame();
-
+  if (pycamera.justPressed(AWEXP_BUTTON_LEFT)) {
+    selectedMenu = (selectedMenu + 1) % menu.size();
+  }
+  if (pycamera.justPressed(AWEXP_BUTTON_RIGHT)) {
+    selectedMenu = (selectedMenu - 1 + menu.size()) % menu.size();
+  }
+  // Cycle through options of selected menu
+  MenuItem &item = menu[selectedMenu];
   if (pycamera.justPressed(AWEXP_BUTTON_UP)) {
-    Serial.println("Up!");
-    for (int i = 0; i < sizeof(validSizes) / sizeof(framesize_t) - 1; ++i) {
-      if (pycamera.photoSize == validSizes[i]) {
-        pycamera.photoSize = validSizes[i + 1];
-        break;
-      }
-    }
+      item.currentIndex = (item.currentIndex + 1) % item.options.size();
   }
   if (pycamera.justPressed(AWEXP_BUTTON_DOWN)) {
-    Serial.println("Down!");
-    for (int i = sizeof(validSizes) / sizeof(framesize_t) - 1; i > 0; --i) {
-      if (pycamera.photoSize == validSizes[i]) {
-        pycamera.photoSize = validSizes[i - 1];
-        break;
-      }
-    }
+      item.currentIndex = (item.currentIndex - 1 + item.options.size()) % item.options.size();
   }
 
-  if (pycamera.justPressed(AWEXP_BUTTON_RIGHT)) {
-    pycamera.specialEffect = (pycamera.specialEffect + 1) % 7;
-    pycamera.setSpecialEffect(pycamera.specialEffect);
-    Serial.printf("set effect: %d\n\r", pycamera.specialEffect);
-  }
-  if (pycamera.justPressed(AWEXP_BUTTON_LEFT)) {
-    pycamera.specialEffect = (pycamera.specialEffect + 6) % 7;
-    pycamera.setSpecialEffect(pycamera.specialEffect);
-    Serial.printf("set effect: %d\n\r", pycamera.specialEffect);
-  }
 
-  if (pycamera.justPressed(AWEXP_BUTTON_OK)) {
-    // iterate through all the ring light colors
-    ringlight_i =
-        (ringlight_i + 1) % (sizeof(ringlightcolors_RGBW) / sizeof(uint32_t));
-    pycamera.setRing(ringlightcolors_RGBW[ringlight_i]);
-    Serial.printf("set ringlight: 0x%08X\n\r",
-                  (unsigned int)ringlightcolors_RGBW[ringlight_i]);
-  }
-  if (pycamera.justPressed(AWEXP_BUTTON_SEL)) {
-    // iterate through brightness levels, incrementing 25 at a time
-    if (ringlightBrightness >= 250)
-      ringlightBrightness = 0;
-    else
-      ringlightBrightness += 50;
-    pycamera.ring.setBrightness(ringlightBrightness);
-    pycamera.setRing(ringlightcolors_RGBW[ringlight_i]);
-    Serial.printf("set ringlight brightness: %d\n\r", ringlightBrightness);
-  }
+  // if (pycamera.justPressed(AWEXP_BUTTON_UP)) {
+  //   Serial.println("Up!");
+  //   for (int i = 0; i < sizeof(validSizes) / sizeof(framesize_t) - 1; ++i) {
+  //     if (pycamera.photoSize == validSizes[i]) {
+  //       pycamera.photoSize = validSizes[i + 1];
+  //       break;
+  //     }
+  //   }
+  // }
+  // if (pycamera.justPressed(AWEXP_BUTTON_DOWN)) {
+  //   Serial.println("Down!");
+  //   for (int i = sizeof(validSizes) / sizeof(framesize_t) - 1; i > 0; --i) {
+  //     if (pycamera.photoSize == validSizes[i]) {
+  //       pycamera.photoSize = validSizes[i - 1];
+  //       break;
+  //     }
+  //   }
+  // }
+
+
+
+  // if (pycamera.justPressed(AWEXP_BUTTON_OK)) {
+  //   // iterate through all the ring light colors
+  //   ringlight_i =
+  //       (ringlight_i + 1) % (sizeof(ringlightcolors_RGBW) / sizeof(uint32_t));
+  //   pycamera.setRing(ringlightcolors_RGBW[ringlight_i]);
+  //   Serial.printf("set ringlight: 0x%08X\n\r",
+  //                 (unsigned int)ringlightcolors_RGBW[ringlight_i]);
+  // }
+  // if (pycamera.justPressed(AWEXP_BUTTON_SEL)) {
+  //   // iterate through brightness levels, incrementing 25 at a time
+  //   if (ringlightBrightness >= 250)
+  //     ringlightBrightness = 0;
+  //   else
+  //     ringlightBrightness += 50;
+  //   pycamera.ring.setBrightness(ringlightBrightness);
+  //   pycamera.setRing(ringlightcolors_RGBW[ringlight_i]);
+  //   Serial.printf("set ringlight brightness: %d\n\r", ringlightBrightness);
+  // }
 
   if (pycamera.justPressed(SHUTTER_BUTTON)) {
     Serial.println("Snap!");
