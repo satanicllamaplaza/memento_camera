@@ -5,6 +5,7 @@
 #include "Adafruit_PyCamera.h"
 #include <Arduino.h>
 
+
 Adafruit_PyCamera pycamera;
 framesize_t validSizes[] = {FRAMESIZE_QQVGA,
                             FRAMESIZE_VGA,
@@ -21,6 +22,8 @@ uint32_t ringlightcolors_RGBW[] = {0x00000000, 0x00ff1700, 0x00ffab00,
                                    0x00ff0072, 0x00ffbc65};
 uint8_t ringlight_i = 0;
 uint8_t ringlightBrightness = 100;
+
+
 
 #define IRQ 3 // probably drop maybe keep the measure for level tbd
 
@@ -51,6 +54,19 @@ void loop() {
 
   // pycamera.timestamp();
   pycamera.captureFrame();
+
+  // Draw boxes on bottom and top of screen
+  // NOTE: DISPLAY SIZE IS 240X240
+  // Get framebuffer dimensions each loop
+  int16_t BUFFER_WIDTH = pycamera.fb->width();
+  int16_t BUFFER_HIGHT = pycamera.fb->height();
+  // Bar is ~10% of screen height
+  int TEXT_BOX_HIGHT = BUFFER_HIGHT / 10;
+  // DRAW TOP BAR
+  pycamera.fb->fillRect(0, 0, BUFFER_WIDTH, TEXT_BOX_HIGHT, pycamera.color565(20, 10, 10));
+  // DRAW BOTTOM BAR
+  pycamera.fb->fillRect(0, BUFFER_HIGHT - TEXT_BOX_HIGHT, BUFFER_WIDTH, TEXT_BOX_HIGHT, pycamera.color565(20, 10, 10));
+
 
   // once the frame is captured we can draw ontot he framebuffer
   if (pycamera.justPressed(AWEXP_SD_DET)) {
@@ -104,6 +120,8 @@ void loop() {
   case FRAMESIZE_HD:
     pycamera.fb->print("1280x720");
     break;
+    pycamera.fb->print("2048x1536");
+    break;
   case FRAMESIZE_QSXGA:
     pycamera.fb->print("2560x1920");
     break;
@@ -117,7 +135,7 @@ void loop() {
     // Serial.printf("X=%0.2f, Y=%0.2f, Z=%0.2f\n\r", x_ms2, y_ms2, z_ms2);
     pycamera.fb->setCursor(0, 220);
     pycamera.fb->setTextSize(2);
-    pycamera.fb->setTextColor(pycamera.color565(255, 255, 255));
+    pycamera.fb->setTextColor(pycamera.color565(206, 192, 144));
     pycamera.fb->print("3D: ");
     pycamera.fb->print(x_ms2, 1);
     pycamera.fb->print(", ");

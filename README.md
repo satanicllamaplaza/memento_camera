@@ -22,3 +22,23 @@ unique and stylized but also create some hardware level filters.
 #### native and custom filters.
 Custom filters need to lean heavily on this lower level configuration. and post processing
 will result in latancy and unusable diplay functionality.
+
+## ui
+
+### transparent text box
+
+```c
+uint16_t barcolor = pycamera.color565(15, 10, 10);
+
+for (int y = buffer_hight - text_box_hight; y < buffer_hight; y++) {
+  for (int x = 0; x < buffer_width; x++) {
+    // checkerboard pattern → skips ~25% of pixels
+    if ((x + y) % 6 != 0) {
+      pycamera.fb->drawpixel(x, y, barcolor);
+    }
+  }
+}
+```
+
+
+
