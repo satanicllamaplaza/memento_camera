@@ -3,86 +3,111 @@
 // SPDX-License-Identifier: MIT
 
 #include "Adafruit_PyCamera.h"
+#include "pins_arduino.h"
+#include "sensor.h"
 #include <Arduino.h>
-#include <iostream>
-#include <string>
 #include <vector>
 
 
 Adafruit_PyCamera pycamera;
 
+int selectedMenu = 0; // which menu item is active
+uint32_t currentLEDColor = 0x00FF0000;
+
+framesize_t validSizes[] = {
+    FRAMESIZE_QQVGA, FRAMESIZE_VGA, FRAMESIZE_HD, FRAMESIZE_QSXGA
+};
 
 struct MenuItem {
-  std::string name;               // label
-  int currentIndex;               // which option is selected
-  std::vector<uint32_t> options;  // hardware-compatible values
-  std::vector<String> displayData;
+  String name;                     // Label
+  int currentIndex;                     // Which option is selected
+  std::vector<uint32_t> options;        // Hardware-compatible values
+  std::vector<String> displayData;      // Settings converted for display text
+  std::function<void(uint32_t)> apply;  // Callable function to apply hardware setting
 };
 
 std::vector<MenuItem> menu = {
   {
-    "LED Brightness",
+    "LEDC",
+    0,
+    {
+      0x00FF0000,
+      0x00FFFF00,
+      0x0000FF00,
+      0x0000FFFF,
+      0x000000FF,
+      0x00FF00FF,
+      0xFF000000
+    },
+    {
+      "RED",
+      "YELLOW",
+      "GREEN",
+      "CYAN",
+      "BLUE",
+      "PINK",
+      "WHITE"
+    },
+    [](uint32_t value) {
+      currentLEDColor = value;
+      pycamera.setRing(currentLEDColor);
+    }
+  },
+
+  {
+    "LEDB",
     0,
     {
       0,
-      20,
-      40,
-      60,
-      80,
-      100
+      50,
+      100,
+      150,
+      200,
+      250
     },
     {
       "OFF",
-      "20",
-      "40",
-      "60",
-      "80",
-      "100"
-    }
-  }, // maybe later add more like 50, 75, 100
-  {
-    "ringlightcolors_RGBW",
-    0,
-    {
-      0x00000000,
-      0x00ff1700,
-      0x00ffab00,
-      0x00fff800,
-      0x00ff6d00,
-      0x000083ff,
-      0x00ff0072,
-      0x00ffbc65
+      "20%",
+      "40%",
+      "60%",
+      "80%",
+      "100%"
     },
-    {
-      "Off",
-      "Orange",
-      "Amber",
-      "Yellow",
-      "Red-Orange",
-      "Blue",
-      "Pink",
-      "Peach"
+    [](uint32_t value) {
+      pycamera.ring.setBrightness(value);
+      pycamera.setRing(currentLEDColor);
     }
   },
+
   {
-    "Resolution",
-    4,
+    "RESO",
+    3,
     {
-      FRAMESIZE_QQVGA,
-      FRAMESIZE_VGA,
-      FRAMESIZE_HD,
-      FRAMESIZE_QSXGA
+      0,
+      1,
+      2,
+      3
     },
     {
       "160x120",
       "640x480",
       "1280x720",
       "2560x1920"
-    }
-  },
+    },
+    [](uint32_t value) { pycamera.photoSize = validSizes[value]; }
+  }
 };
 
-int selectedMenu = 0; // which menu item is active
+
+// MenuItem& ledColors     = menu[0];   // reference ringlightcolors_RGBW menu
+// MenuItem& ledBrightness = menu[1];   // reference LED Brightness menu
+// MenuItem& resolutionMenu = menu[2];   // reference Resolution menu
+
+void applyMenuSettings(int menuIndex = -1) {
+  if (menuIndex == -1) menuIndex = selectedMenu;
+  MenuItem& item = menu[menuIndex];
+  item.apply(item.options[item.currentIndex]);
+}
 
 #define IRQ 3 // probably drop maybe keep the measure for level tbd
 
@@ -98,16 +123,16 @@ void setup() {
   }
   Serial.println("pyCamera hardware initialized!");
 
+  for (int i = 0; i < menu.size(); i++) {
+    applyMenuSettings(i);  // apply defaults for all menus
+  }
+
   pinMode(IRQ, INPUT_PULLUP);
   attachInterrupt(  // probably drop maybe keep the measure for level tbd
       IRQ, [] { Serial.println("IRQ!"); }, FALLING);
 }
 
 void loop() {
-  static uint8_t loopn = 0;
-  pycamera.setNeopixel(pycamera.Wheel(loopn));
-  loopn += 8;
-
   pycamera.readButtons();
   // Serial.printf("Buttons: 0x%08X\n\r",  pycamera.readButtons());
 
@@ -148,22 +173,6 @@ void loop() {
     delay(200);
   }
 
-  // probably remove this battery information.
-
-  // float A0_voltage = analogRead(A0) / 4096.0 * 3.3;
-  // if (loopn == 0) {
-  //   Serial.printf("A0 = %0.1f V, Battery = %0.1f V\n\r", A0_voltage,
-  //                 pycamera.readBatteryVoltage());
-  // }
-  // pycamera.fb->setCursor(0, 0);
-  // pycamera.fb->setTextSize(2);
-  // pycamera.fb->setTextColor(pycamera.color565(255, 255, 255));
-  // pycamera.fb->print("A0 = ");
-  // pycamera.fb->print(A0_voltage, 1);
-  // pycamera.fb->print("V\nBattery = ");
-  // pycamera.fb->print(pycamera.readBatteryVoltage(), 1);
-  // pycamera.fb->print(" V");
-
   float x_ms2, y_ms2, z_ms2;
   if (pycamera.readAccelData(&x_ms2, &y_ms2, &z_ms2)) {
     // Serial.printf("X=%0.2f, Y=%0.2f, Z=%0.2f\n\r", x_ms2, y_ms2, z_ms2);
@@ -178,62 +187,33 @@ void loop() {
     pycamera.fb->print(z_ms2, 1);
   }
 
+  MenuItem& item = menu[selectedMenu];
+  String menuNameStr  = item.name;
+  String menuValueStr = item.displayData[item.currentIndex];
+
+  pycamera.fb->setCursor(0, 220);
+  pycamera.fb->setTextSize(2);
+  pycamera.fb->setTextColor(pycamera.color565(206, 192, 144));
+  pycamera.fb->print(menuNameStr);
+  pycamera.fb->print(": ");
+  pycamera.fb->print(menuValueStr);
+
   pycamera.blitFrame();
-  if (pycamera.justPressed(AWEXP_BUTTON_LEFT)) {
+  if (pycamera.justPressed(AWEXP_BUTTON_RIGHT)) {
     selectedMenu = (selectedMenu + 1) % menu.size();
   }
-  if (pycamera.justPressed(AWEXP_BUTTON_RIGHT)) {
+  if (pycamera.justPressed(AWEXP_BUTTON_LEFT)) {
     selectedMenu = (selectedMenu - 1 + menu.size()) % menu.size();
   }
   // Cycle through options of selected menu
-  MenuItem &item = menu[selectedMenu];
   if (pycamera.justPressed(AWEXP_BUTTON_UP)) {
-      item.currentIndex = (item.currentIndex + 1) % item.options.size();
+    item.currentIndex = (item.currentIndex + 1) % item.options.size();
+    applyMenuSettings();
   }
   if (pycamera.justPressed(AWEXP_BUTTON_DOWN)) {
-      item.currentIndex = (item.currentIndex - 1 + item.options.size()) % item.options.size();
+    item.currentIndex = (item.currentIndex - 1 + item.options.size()) % item.options.size();
+    applyMenuSettings();
   }
-
-
-  // if (pycamera.justPressed(AWEXP_BUTTON_UP)) {
-  //   Serial.println("Up!");
-  //   for (int i = 0; i < sizeof(validSizes) / sizeof(framesize_t) - 1; ++i) {
-  //     if (pycamera.photoSize == validSizes[i]) {
-  //       pycamera.photoSize = validSizes[i + 1];
-  //       break;
-  //     }
-  //   }
-  // }
-  // if (pycamera.justPressed(AWEXP_BUTTON_DOWN)) {
-  //   Serial.println("Down!");
-  //   for (int i = sizeof(validSizes) / sizeof(framesize_t) - 1; i > 0; --i) {
-  //     if (pycamera.photoSize == validSizes[i]) {
-  //       pycamera.photoSize = validSizes[i - 1];
-  //       break;
-  //     }
-  //   }
-  // }
-
-
-
-  // if (pycamera.justPressed(AWEXP_BUTTON_OK)) {
-  //   // iterate through all the ring light colors
-  //   ringlight_i =
-  //       (ringlight_i + 1) % (sizeof(ringlightcolors_RGBW) / sizeof(uint32_t));
-  //   pycamera.setRing(ringlightcolors_RGBW[ringlight_i]);
-  //   Serial.printf("set ringlight: 0x%08X\n\r",
-  //                 (unsigned int)ringlightcolors_RGBW[ringlight_i]);
-  // }
-  // if (pycamera.justPressed(AWEXP_BUTTON_SEL)) {
-  //   // iterate through brightness levels, incrementing 25 at a time
-  //   if (ringlightBrightness >= 250)
-  //     ringlightBrightness = 0;
-  //   else
-  //     ringlightBrightness += 50;
-  //   pycamera.ring.setBrightness(ringlightBrightness);
-  //   pycamera.setRing(ringlightcolors_RGBW[ringlight_i]);
-  //   Serial.printf("set ringlight brightness: %d\n\r", ringlightBrightness);
-  // }
 
   if (pycamera.justPressed(SHUTTER_BUTTON)) {
     Serial.println("Snap!");
