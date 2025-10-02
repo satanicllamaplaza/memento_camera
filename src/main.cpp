@@ -15,7 +15,17 @@ int selectedMenu = 0; // which menu item is active
 uint32_t currentLEDColor = 0x00FF0000;
 
 framesize_t validSizes[] = {
-    FRAMESIZE_QQVGA, FRAMESIZE_VGA, FRAMESIZE_HD, FRAMESIZE_QSXGA
+  FRAMESIZE_QQVGA,
+  FRAMESIZE_QVGA,
+  FRAMESIZE_HVGA,
+  FRAMESIZE_VGA,
+  FRAMESIZE_SVGA,
+  FRAMESIZE_XGA,
+  FRAMESIZE_HD,
+  FRAMESIZE_SXGA
+  // FRAMESIZE_UXGA,
+  // FRAMESIZE_QXGA,
+  // FRAMESIZE_QSXGA
 };
 
 struct MenuItem {
@@ -86,13 +96,27 @@ std::vector<MenuItem> menu = {
       0,
       1,
       2,
-      3
+      3,
+      4,
+      5,
+      6,
+      7
+      // 8,
+      // 9,
+      // 10,
     },
     {
       "160x120",
+      "320x240",
+      "480x320",
       "640x480",
+      "800x600",
+      "1024x768",
       "1280x720",
-      "2560x1920"
+      "1280x1024"
+      // "1600x1200",
+      // "2048x1536",
+      // "2560x1920"
     },
     [](uint32_t value) { pycamera.photoSize = validSizes[value]; }
   }
