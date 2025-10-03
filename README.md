@@ -27,7 +27,7 @@ will result in latancy and unusable diplay functionality.
 
 ### transparent text box
 
-```c
+```cpp
 uint16_t barcolor = pycamera.color565(15, 10, 10);
 
 for (int y = buffer_hight - text_box_hight; y < buffer_hight; y++) {

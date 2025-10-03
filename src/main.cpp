@@ -8,25 +8,27 @@
 #include <Arduino.h>
 #include <vector>
 
-
 Adafruit_PyCamera pycamera;
 
 int selectedMenu = 0; // which menu item is active
 uint32_t currentLEDColor = 0x00FF0000;
 
-framesize_t validSizes[] = {
-  FRAMESIZE_QQVGA,
-  FRAMESIZE_QVGA,
-  FRAMESIZE_HVGA,
-  FRAMESIZE_VGA,
-  FRAMESIZE_SVGA,
-  FRAMESIZE_XGA,
-  FRAMESIZE_HD,
-  FRAMESIZE_SXGA
-  // FRAMESIZE_UXGA,
-  // FRAMESIZE_QXGA,
-  // FRAMESIZE_QSXGA
-};
+framesize_t displayResolution = FRAMESIZE_VGA;
+framesize_t captureResolution = FRAMESIZE_VGA;
+
+// framesize_t validSizes[] = {
+//   FRAMESIZE_QQVGA,
+//   FRAMESIZE_QVGA,
+//   FRAMESIZE_HVGA,
+//   FRAMESIZE_VGA,
+//   FRAMESIZE_SVGA,
+//   FRAMESIZE_XGA,
+//   FRAMESIZE_HD,
+//   FRAMESIZE_SXGA,
+//   FRAMESIZE_UXGA,
+//   FRAMESIZE_QXGA,
+//   FRAMESIZE_QSXGA
+// };
 
 struct MenuItem {
   String name;                     // Label
@@ -93,17 +95,17 @@ std::vector<MenuItem> menu = {
     "RESO",
     3,
     {
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7
-      // 8,
-      // 9,
-      // 10,
+      FRAMESIZE_QQVGA,
+      FRAMESIZE_QVGA,
+      FRAMESIZE_HVGA,
+      FRAMESIZE_VGA,
+      FRAMESIZE_SVGA,
+      FRAMESIZE_XGA,
+      FRAMESIZE_HD,
+      FRAMESIZE_SXGA,
+      FRAMESIZE_UXGA,
+      FRAMESIZE_QXGA,
+      FRAMESIZE_QSXGA
     },
     {
       "160x120",
@@ -113,19 +115,14 @@ std::vector<MenuItem> menu = {
       "800x600",
       "1024x768",
       "1280x720",
-      "1280x1024"
-      // "1600x1200",
-      // "2048x1536",
-      // "2560x1920"
+      "1280x1024",
+      "1600x1200",
+      "2048x1536",
+      "2560x1920"
     },
-    [](uint32_t value) { pycamera.photoSize = validSizes[value]; }
+    [](uint32_t value) { captureResolution = static_cast<framesize_t>(value); }
   }
 };
-
-
-// MenuItem& ledColors     = menu[0];   // reference ringlightcolors_RGBW menu
-// MenuItem& ledBrightness = menu[1];   // reference LED Brightness menu
-// MenuItem& resolutionMenu = menu[2];   // reference Resolution menu
 
 void applyMenuSettings(int menuIndex = -1) {
   if (menuIndex == -1) menuIndex = selectedMenu;
@@ -150,6 +147,10 @@ void setup() {
   for (int i = 0; i < menu.size(); i++) {
     applyMenuSettings(i);  // apply defaults for all menus
   }
+
+  pycamera.photoSize(displayResolution);
+  pycamera.setFramesize(displayResolution);
+
 
   pinMode(IRQ, INPUT_PULLUP);
   attachInterrupt(  // probably drop maybe keep the measure for level tbd
@@ -196,20 +197,22 @@ void loop() {
     pycamera.fb->print(F("SD Card inserted"));
     delay(200);
   }
+ 
+  // NOTE: XYZ positions for top menu bar
 
-  float x_ms2, y_ms2, z_ms2;
-  if (pycamera.readAccelData(&x_ms2, &y_ms2, &z_ms2)) {
-    // Serial.printf("X=%0.2f, Y=%0.2f, Z=%0.2f\n\r", x_ms2, y_ms2, z_ms2);
-    pycamera.fb->setCursor(0, 100);
-    pycamera.fb->setTextSize(2);
-    pycamera.fb->setTextColor(pycamera.color565(206, 192, 144));
-    pycamera.fb->print("3D: ");
-    pycamera.fb->print(x_ms2, 1);
-    pycamera.fb->print(", ");
-    pycamera.fb->print(y_ms2, 1);
-    pycamera.fb->print(", ");
-    pycamera.fb->print(z_ms2, 1);
-  }
+  // float x_ms2, y_ms2, z_ms2;
+  // if (pycamera.readAccelData(&x_ms2, &y_ms2, &z_ms2)) {
+  //   // Serial.printf("X=%0.2f, Y=%0.2f, Z=%0.2f\n\r", x_ms2, y_ms2, z_ms2);
+  //   pycamera.fb->setCursor(0, 100);
+  //   pycamera.fb->setTextSize(2);
+  //   pycamera.fb->setTextColor(pycamera.color565(206, 192, 144));
+  //   pycamera.fb->print("3D: ");
+  //   pycamera.fb->print(x_ms2, 1);
+  //   pycamera.fb->print(", ");
+  //   pycamera.fb->print(y_ms2, 1);
+  //   pycamera.fb->print(", ");
+  //   pycamera.fb->print(z_ms2, 1);
+  // }
 
   MenuItem& item = menu[selectedMenu];
   String menuNameStr  = item.name;
@@ -241,7 +244,8 @@ void loop() {
 
   if (pycamera.justPressed(SHUTTER_BUTTON)) {
     Serial.println("Snap!");
-    if (pycamera.takePhoto("IMAGE", pycamera.photoSize)) {
+    // pycamera.photoSize = captureResolution;
+    if (pycamera.takePhoto("IMAGE", captureResolution)) {
       pycamera.fb->setCursor(120, 100);
       pycamera.fb->setTextSize(2);
       pycamera.fb->setTextColor(pycamera.color565(255, 255, 255));
@@ -249,6 +253,7 @@ void loop() {
       pycamera.speaker_tone(100, 50); // tone1 - B5
       // pycamera.blitFrame();
     }
+    // pycamera.photoSize = displayResolution;
   }
 
   delay(100);
